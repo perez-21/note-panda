@@ -1,7 +1,6 @@
 import { Topic } from "@/app/shared/types";
 import { topics } from "@/app/shared/mock";
 import {
-  Search,
   Plus,
   CodeXml,
   Earth,
@@ -9,10 +8,56 @@ import {
   Calculator,
   BookOpen,
 } from "lucide-react";
+import Search from "@/app/ui/Search";
+import { logThis, escapeRegex } from "@/app/lib/utils";
+import Link from "next/link";
+import clsx from "clsx";
 
 const image = "/topic.png";
 // const topics = [];
-export default function Page() {
+export default async function Page(props: {
+  searchParams?: Promise<{
+    query?: string;
+    page?: string;
+    visibility?: "Public" | "Private";
+  }>;
+}) {
+  const searchParams = await props.searchParams;
+  const query = searchParams?.query || "";
+  const currentPage = Number(searchParams?.page) || 1;
+  const visibility = searchParams?.visibility || null;
+
+  function filterTopics(
+    page: number,
+    query: string,
+    visibility: "Public" | "Private" | null
+  ) {
+    if (!query && !page && !visibility) {
+      return topics;
+    }
+
+    let filteredTopics = topics.filter((topic) => {
+      if (!visibility) {
+        return true;
+      }
+      return topic.visibility === visibility;
+    });
+
+    if (!query) {
+      return filteredTopics;
+    }
+    filteredTopics = filteredTopics.filter((topic) => {
+      const safeQuery = escapeRegex(query);
+      const regex = new RegExp(safeQuery, "i");
+
+      const titleMatch = regex.test(topic.title);
+      const descriptionMatch = regex.test(topic.description);
+
+      return titleMatch || descriptionMatch;
+    });
+
+    return filteredTopics;
+  }
   return (
     <>
       <main className="flex flex-1 justify-center py-8">
@@ -25,43 +70,57 @@ export default function Page() {
               Explore hubs to learn and collaborate with others.
             </p>
           </div>
-          <div className="mb-6 relative">
-            <div className="absolute inset-y-0 left-0 flex items-center pl-4 pointer-events-none text-gray-400 dark:text-gray-500">
-              <Search className="w-5 h-5" />
-            </div>
-            <input
-              className="block w-full rounded-lg border-transparent bg-white dark:bg-background-dark/50 focus:ring-primary focus:border-primary pl-12 pr-4 py-3 text-base text-gray-900 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-500 shadow-sm"
-              placeholder="Search topics"
-              type="search"
-            />
-          </div>
+          <Search placeholder="Search Topics" />
           <div className="border-b border-gray-200 dark:border-gray-700/50 mb-6">
             <nav aria-label="Tabs" className="-mb-px flex space-x-8">
-              <a
-                className="border-primary text-primary whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm"
-                href="#"
+              <Link
+                className={clsx(
+                  " whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm",
+                  {
+                    "border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 hover:border-gray-300 dark:hover:border-gray-600":
+                      visibility ? true : false,
+                    "border-primary text-primary": visibility ? false : true,
+                  }
+                )}
+                href="/my/topics"
               >
                 All
-              </a>
-              <a
-                className="border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 hover:border-gray-300 dark:hover:border-gray-600 whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm"
-                href="#"
+              </Link>
+              <Link
+                className={clsx(
+                  " whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm",
+                  {
+                    "border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 hover:border-gray-300 dark:hover:border-gray-600":
+                      visibility === "Public" ? false : true,
+                    "border-primary text-primary":
+                      visibility === "Public" ? true : false,
+                  }
+                )}
+                href="/my/topics?visibility=Public"
               >
                 Public
-              </a>
-              <a
-                className="border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 hover:border-gray-300 dark:hover:border-gray-600 whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm"
-                href="#"
+              </Link>
+              <Link
+                className={clsx(
+                  " whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm",
+                  {
+                    "border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 hover:border-gray-300 dark:hover:border-gray-600":
+                      visibility === "Private" ? false : true,
+                    "border-primary text-primary":
+                      visibility === "Private" ? true : false,
+                  }
+                )}
+                href="/my/topics?visibility=Private"
               >
                 Private
-              </a>
+              </Link>
             </nav>
           </div>
           <div className="space-y-12">
             <section>
               {topics.length > 0 ? (
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-                  {topics.map((topic) => {
+                  {filterTopics(currentPage, query, visibility).map((topic) => {
                     return (
                       <div key={topic.id} className="group cursor-pointer">
                         <div
@@ -84,7 +143,8 @@ export default function Page() {
                   <div
                     className="mx-auto w-full max-w-sm bg-center bg-no-repeat aspect-video bg-contain rounded-lg mb-6"
                     style={{
-                      backgroundImage: "url('/notopics.png')"}}
+                      backgroundImage: "url('/notopics.png')",
+                    }}
                   ></div>
                   <h3 className="text-lg font-bold text-gray-900 dark:text-white">
                     No topics yet
